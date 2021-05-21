@@ -1,0 +1,85 @@
+---
+title: "Machine Learning Project"
+author: "MB"
+date: "16 5 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(caret)
+library(rattle)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of your project is to predict the manner in which subjects did exercises. This is the "classe" variable in the training set. The prediction model will be used to predict 20 different test cases. 
+
+http://groupware.les.inf.puc-rio.br/har
+
+```{r load data,echo=TRUE}
+quizdata <- read.csv("C:\\Users\\Marie\\Documents\\GitHub\\coursera\\MachineLearning\\pml-testing.csv",na.strings=c("NA","","NaN"))
+training <- read.csv("C:\\Users\\Marie\\Documents\\GitHub\\coursera\\MachineLearning\\pml-training.csv",na.strings=c("NA","","NaN"))
+training$classe <- as.factor(training$classe)
+training <- training[,-c(1:7)]
+training <- training[,colMeans(is.na(training))<0.9]
+
+```
+
+
+
+## Partition Data
+
+The data from the training.csv is split into training and testing data, as the test data from the test.csv is meant for the quiz in the end.
+```{r partition,echo=TRUE}
+inTrain <-createDataPartition(training$classe,p=0.6,list=FALSE)
+training <- training[inTrain,]
+testing <- training[-inTrain,]
+
+```
+
+
+## Fitting a model
+
+Three different models are fitted and the accuracy is compared. The first model will be a decision tree, second a random forest model and the third a generalized boosted model. Since the predictor is categorical, the accuracy is used to evaluate the quality of the models.
+
+```{r model1, echo=TRUE,fig.width=5}
+trainControl <- trainControl(method="cv", number=10) # use cross validation with 10 samples
+mod1 <- train(classe~.,data=training, method="rpart",trControl=trainControl)
+fancyRpartPlot(mod1$finalModel)
+pred1 <- predict(mod1,testing)
+acc1 <- confusionMatrix(pred1,testing$classe)$overall[["Accuracy"]]
+
+```
+For the sake of keeping the calculation time low, the random forest model gets limited to 10 trees.
+```{r model2, echo=TRUE}
+trainControl <- trainControl(method="cv", number=10) # use cross validation with 10 samples
+mod2 <- train(classe~.,data=training,method="rf",ntree=5,trControl=trainControl)
+pred2 <- predict(mod2,testing)
+acc2 <- confusionMatrix(pred2,testing$classe)$overall[["Accuracy"]]
+
+```
+
+```{r model3, echo=TRUE}
+trainControl <- trainControl(method="cv", number=10) # use cross validation with 10 samples
+mod3 <- train(classe~.,data=training,method="gbm",trControl=trainControl,verbose=FALSE)
+pred3 <- predict(mod3,testing)
+acc3 <- confusionMatrix(pred3,testing$classe)$overall[["Accuracy"]]
+
+```
+
+```{r accuracy, echo=FALSE}
+data.frame(rpart=acc1,rf=acc2,gbm=acc3)
+
+```
+
+The table above shows the accurarcy of the random forest model is highest, closely followed by the GBM, so the RF model is used to predict the class for the quizdata set.
+
+# Predict Quiz Data
+The Random Forest Model is used to predict the quiz data:
+```{r quizdata, echo=FALSE}
+pred_quiz <- predict(mod2,quizdata)
+pred_quiz
+
+```
